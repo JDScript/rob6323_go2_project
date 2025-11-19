@@ -28,7 +28,7 @@ This ensures subsequent scripts and paths resolve correctly on the cluster and d
 cd $HOME/rob6323_go2_project
 ./install.sh
 ```
-Do not skip this step, as it configures the environment expected by the training and evaluation scripts.
+Do not skip this step, as it configures the environment expected by the training and evaluation scripts. It will launch a job in burst to set up things and clone the IsaacLab repo inside your greene storage. You must wait until the job in burst is complete before launching your first training. To check the progress of the job, you can run `ssh burst "squeue -u $USER"`, and the job should disappear from there once it's completed.
 
 ## What to edit
 
