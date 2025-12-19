@@ -1,31 +1,7 @@
 # ROB-GY 6323 Go2 Project
 
-Training a robust gait policy for Unitree Go2 quadrupedal locomotion using Proximal Policy Gradient (PPO)
-
-<div style="margin-left: 20px;">
-<a href="#collaborators">Collaborators</a><br>
-<a href="#installation">Installation</a><br>
-<a href="#usage">Usage</a>
-<ul style="margin-top: 0px; margin-bottom: 0px;">
-  <li style="margin-bottom: 0px;"><a href="#training">Training</a></li>
-  <li style="margin-bottom: 0px;"><a href="#evaluation">Evaluation</a></li>
-  <li><a href="#notes">Notes</a></li>
-</ul>
-<a href="#implementation">Implementation</a>
-<ul style="margin-top: 0px; margin-bottom: 0px;">
-  <li><a href="#mdp">MDP</a>
-    <ul style="margin-top: 0px; margin-bottom: 0px;">
-      <li style="margin-bottom: 0px;"><a href="#reward">Reward</a></li>
-      <li style="margin-bottom: 0px;"><a href="#termination">Termination</a></li>
-      <li><a href="#observation">Observation</a></li>
-    </ul>
-  </li>
-  <li style="margin-top: 0px;">
-    <a href="#low-level-pd-controller">PD Controller</a></li>
-  <li>
-  <a href="#actuator-friction-model">Actuator Friction Model</a></li>
-</ul>
-</div>
+Reinforcement Learning for Quadrupedal Locomotion. Training robust walking policies for the Unitree Go2 robot using Proximal Policy Optimization (PPO). Employed Raibert Heuristic for gait shaping. Modeled joint actuator friction to bridge the sim-to-real gap.
+<img src="docs/img/gait.gif" alt="demo" style="zoom: 60%;" />
 
 ## Collaborators
 
@@ -48,6 +24,8 @@ source ./.venv/bin/activate
 
 
 ### Training
+
+This project is trained with RSL-RL
 
 To train in headless mode
 
@@ -89,17 +67,20 @@ python ./scripts/rsl_rl/play.py \
 --headless
 ```
 
+You can find pretrained checkpoints in the `/ckpt` directory
+
 ### Notes
 
-- Supported tasks are
-
-    | `<task_name>` | Task Description |
-    |-------|-------------|
-    |`Template-Rob6323-Go2-Direct-v0`   | Gait Policy Baseline |
-    |`Template-Rob6323-Go2-Direct-v1`     | Gait Policy with Actuator Friction Model |
-
 - Agent & Environment seed could be specified AT THE SAME TIME with an optional flag `--seed <seed_num>`
-- Training logs, checkpoints, and rollout videos could be found in the `logs` directory
+- Training logs, checkpoints, and rollout videos could be found in the `/logs` directory
+- Supported tasks, and the seeds used for training the provided checkpoints are
+
+    | `<task_name>` | Task Description | Seed
+    |:-------|:-------------|:-------:|
+    |`Template-Rob6323-Go2-Direct-v0`   | Gait Policy Baseline | 42 (default) |
+    |`Template-Rob6323-Go2-Direct-v1`     | Gait Policy with Actuator Friction Model | 114514 |
+
+
 
 
 ## Implementation
