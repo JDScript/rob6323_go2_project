@@ -1,6 +1,10 @@
 # ROB-GY 6323 Go2 Project
 
+Course Final Project of *ROB-GY 6323 Reinforcement Learning and Optimal Control for Autonomous Systems I*, instructed by Prof. Ludovic Righetti
+
 Reinforcement Learning for Quadrupedal Locomotion. Training robust walking policies for the Unitree Go2 robot using Proximal Policy Optimization (PPO). Employed Raibert Heuristic for gait shaping. Modeled joint actuator friction to bridge the sim-to-real gap.
+
+Please refer to [official project webpage](https://machines-in-motion.github.io/RL_class_go2_project/) for more information
 
 <img src="docs/img/gait.gif" alt="demo" style="zoom: 60%;" />
 
