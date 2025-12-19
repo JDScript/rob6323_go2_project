@@ -19,6 +19,7 @@ from isaaclab.markers import VisualizationMarkers
 from isaaclab.sensors import ContactSensor
 
 from .mdp.rewards import *
+from .mdp.terminations import *
 from .rob6323_go2_env_cfg import Rob6323Go2EnvCfg
 
 
@@ -120,7 +121,21 @@ class Rob6323Go2Env(DirectRLEnv):
         # Debug Visualization
         self.set_debug_vis(self.cfg.debug_vis)
 
-    def _setup_scene(self):
+
+    @property
+    def foot_positions_w(
+            self
+        ) -> torch.Tensor:
+        """
+        Returns the feet positions in the world frame of shape (num_envs, num_feet, 3)
+        """
+        return self.robot.data.body_pos_w[:, self._feet_ids]
+
+
+    def _setup_scene(
+            self
+        ) -> None:
+        
         self.robot = Articulation(self.cfg.robot_cfg)
         self._contact_sensor = ContactSensor(self.cfg.contact_sensor)
 
@@ -144,19 +159,26 @@ class Rob6323Go2Env(DirectRLEnv):
         light_cfg.func("/World/Light", light_cfg)
 
 
+    def _pre_physics_step(
+            self, 
+            actions: torch.Tensor
+        ) -> None:
 
-    def _pre_physics_step(self, actions: torch.Tensor) -> None:
         self._actions = actions.clone()
         # Compute desired joint positions from policy actions
         self.desired_joint_pos = (
             self.cfg.action_scale * self._actions + self.robot.data.default_joint_pos
         )
 
-    def _apply_action(self) -> None:
+
+    def _apply_action(
+            self
+        ) -> None:
+
         # Option: Direct Position Control
         # self.robot.set_joint_position_target(self.desired_joint_pos)
 
-        # Option: PD Control with Friction Model
+        # Option: PD Control
         torques = torch.clip(
             (
                 self.Kp * (self.desired_joint_pos - self.robot.data.joint_pos)
@@ -166,16 +188,14 @@ class Rob6323Go2Env(DirectRLEnv):
             self.torque_limits,
         )
 
-        # Friction Model
-        torques -= self.fs * torch.tanh(self.robot.data.joint_vel / 0.1)    # tau_stiction
-        torques -= self.uv * self.robot.data.joint_vel                      # tau_viscous
-
         # Apply torques to the robot
         self.robot.set_joint_effort_target(torques)
 
 
+    def _get_observations(
+            self
+        ) -> dict:
 
-    def _get_observations(self) -> dict:
         self._previous_actions = self._actions.clone()
         obs = torch.cat(
             [
@@ -197,7 +217,10 @@ class Rob6323Go2Env(DirectRLEnv):
         observations = {"policy": obs}
         return observations
 
-    def _get_rewards(self) -> torch.Tensor:
+
+    def _get_rewards(
+            self
+        ) -> torch.Tensor:
 
         # Update gait state
         self._step_contact_targets()
@@ -228,40 +251,20 @@ class Rob6323Go2Env(DirectRLEnv):
 
         return reward
 
+
     def _get_dones(
             self
         ) -> tuple[torch.Tensor, torch.Tensor]:
 
-        # Timeout
-        time_out = self.episode_length_buf >= self.max_episode_length - 1
+        time_out = done_timeout(self)
 
-        # Constraints Violations
-        # - Base contact forces
-        net_contact_forces = self._contact_sensor.data.net_forces_w_history
-        cstr_termination_contacts = torch.any(
-            torch.max(torch.norm(net_contact_forces[:, :, self._base_id], dim=-1), dim=1)[0] > 1.0,
-            dim=1,
-        )
-        # - Base height
-        base_height = self.robot.data.root_pos_w[:, 2]
-        cstr_base_height_min = base_height < self.cfg.base_height_min
-        # - Base Upsidedown
-        cstr_upsidedown = self.robot.data.projected_gravity_b[:, 2] > 0
-
+        cstr_termination_contacts = done_baseContact(self)
+        cstr_base_height_min = done_baseHeight(self.robot, self.cfg.base_height_min)
+        cstr_upsidedown = done_baseUpsidedown(self.robot)
         died = cstr_termination_contacts | cstr_upsidedown | cstr_base_height_min
 
         return died, time_out
 
-
-    @property
-    def foot_positions_w(
-            self
-        ) -> torch.Tensor:
-        """
-        Returns the feet positions in the world frame of shape (num_envs, num_feet, 3)
-        """
-        return self.robot.data.body_pos_w[:, self._feet_ids]
-    
 
     def _reset_idx(
             self,
@@ -325,8 +328,12 @@ class Rob6323Go2Env(DirectRLEnv):
             self, 
             debug_vis: bool
         ) -> None:
-        # set visibility of markers
-        # note: parent only deals with callbacks. not their visibility
+        """
+        set visibility of markers
+
+        note: parent only deals with callbacks. not their visibility
+        """
+
         if debug_vis:
             # create markers if necessary for the first time
             if not hasattr(self, "goal_vel_visualizer"):
@@ -338,6 +345,7 @@ class Rob6323Go2Env(DirectRLEnv):
                 self.current_vel_visualizer = VisualizationMarkers(
                     self.cfg.current_vel_visualizer_cfg
                 )
+            
             # set their visibility to true
             self.goal_vel_visualizer.set_visibility(True)
             self.current_vel_visualizer.set_visibility(True)
@@ -350,21 +358,26 @@ class Rob6323Go2Env(DirectRLEnv):
             self, 
             event
         ) -> None:
-        # check if robot is initialized
-        # note: this is needed in-case the robot is de-initialized. we can't access the data
+        """
+        check if robot is initialized
+
+        note: this is needed in-case the robot is de-initialized. we can't access the data
+        """
+
         if not self.robot.is_initialized:
             return
         # get marker location
-        # -- base state
+        # - base state
         base_pos_w = self.robot.data.root_pos_w.clone()
         base_pos_w[:, 2] += 0.5
-        # -- resolve the scales and quaternions
+        # - resolve the scales and quaternions
         vel_des_arrow_scale, vel_des_arrow_quat = self._resolve_xy_velocity_to_arrow(
             self._commands[:, :2]
         )
         vel_arrow_scale, vel_arrow_quat = self._resolve_xy_velocity_to_arrow(
             self.robot.data.root_lin_vel_b[:, :2]
         )
+
         # display markers
         self.goal_vel_visualizer.visualize(
             base_pos_w, vel_des_arrow_quat, vel_des_arrow_scale
@@ -381,17 +394,21 @@ class Rob6323Go2Env(DirectRLEnv):
         """
         Converts the XY base velocity command to arrow direction rotation
         """
+
         # obtain default scale of the marker
         default_scale = self.goal_vel_visualizer.cfg.markers["arrow"].scale
+
         # arrow-scale
         arrow_scale = torch.tensor(default_scale, device=self.device).repeat(
             xy_velocity.shape[0], 1
         )
         arrow_scale[:, 0] *= torch.linalg.norm(xy_velocity, dim=1) * 3.0
+
         # arrow-direction
         heading_angle = torch.atan2(xy_velocity[:, 1], xy_velocity[:, 0])
         zeros = torch.zeros_like(heading_angle)
         arrow_quat = math_utils.quat_from_euler_xyz(zeros, zeros, heading_angle)
+
         # convert everything back from base to world frame
         base_quat_w = self.robot.data.root_quat_w
         arrow_quat = math_utils.quat_mul(base_quat_w, arrow_quat)
@@ -406,6 +423,7 @@ class Rob6323Go2Env(DirectRLEnv):
         For Raibert Heuristic Gait Shaping.
         Advances the gait clock and calculates where the feet should be based on the command velocity
         """
+
         frequencies = 3.0
         phases = 0.5
         offsets = 0.0
@@ -483,3 +501,71 @@ class Rob6323Go2Env(DirectRLEnv):
         self.desired_contact_states[:, 1] = smoothing_multiplier_FR
         self.desired_contact_states[:, 2] = smoothing_multiplier_RL
         self.desired_contact_states[:, 3] = smoothing_multiplier_RR
+
+
+
+class Rob6323Go2Env_FM(Rob6323Go2Env):
+    cfg: Rob6323Go2EnvCfg
+
+    def __init__(
+            self, 
+            cfg: Rob6323Go2EnvCfg, 
+            render_mode: str | None = None, 
+            **kwargs
+        ) -> None:
+        super().__init__(cfg, render_mode, **kwargs)
+
+
+    def _apply_action(
+            self
+        ) -> None:
+
+        torques = torch.clip(
+            (
+                self.Kp * (self.desired_joint_pos - self.robot.data.joint_pos)
+                - self.Kd * self.robot.data.joint_vel
+            ),
+            -self.torque_limits,
+            self.torque_limits,
+        )
+
+        # Apply Friction Model
+        torques -= self.fs * torch.tanh(self.robot.data.joint_vel / 0.1)    # tau_stiction
+        torques -= self.uv * self.robot.data.joint_vel                      # tau_viscous
+
+        # Apply torques to the robot
+        self.robot.set_joint_effort_target(torques)
+
+
+    def _get_rewards(
+            self
+        ) -> torch.Tensor:
+
+        # Update gait state
+        self._step_contact_targets()
+
+        # Rewards dict
+        rewards = {
+            "track_cmd_linVel":  reward_trackCMD_linVel(self, self.robot) * self.cfg.rewScale_cmd_linVel,
+            "track_cmd_angVel":  reward_trackCMD_angVel(self, self.robot) * self.cfg.rewScale_cmd_angVel,
+            "body_orient":       reward_bodyOrient(self.robot) * self.cfg.rewScale_body_orient,
+            "body_pose":         reward_bodyPose(self.robot) * self.cfg.rewScale_body_pose,
+            "dof_vel":           reward_dofVel(self.robot) * self.cfg.rewScale_dofVel,
+            "dof_torque":        reward_dofTorque(self.robot) * self.cfg.rewScale_dofTorque_FM,
+            "action_rate":       reward_actionRate(self, self.cfg.action_scale) * self.cfg.rewScale_actionRate_FM,
+            "bouncing":          reward_bouncing(self.robot) * self.cfg.rewScale_bounce,
+            "raibert_heuristic": reward_raibertHeuristic(self, self.robot) * self.cfg.rewScale_raibertHeuristic,
+            "foot_clearance":    reward_footClearance(self) * self.cfg.rewScale_feetClearance,
+            "tracking_contacts": reward_trackContacts(self) * self.cfg.rewScale_trackContacts
+        }
+        reward = torch.sum(torch.stack(list(rewards.values())), dim=0)
+
+        # Logging
+        for key, value in rewards.items():
+            self._episode_sums[key] += value
+
+        # Update Action History Buffer
+        self._last_actions = torch.roll(self._last_actions, 1, 2)
+        self._last_actions[:, :, 0] = self._actions[:]
+
+        return reward
