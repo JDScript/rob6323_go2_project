@@ -4,7 +4,7 @@ Course Final Project of *ROB-GY 6323 Reinforcement Learning and Optimal Control 
 
 Reinforcement Learning for Quadrupedal Locomotion. Training robust walking policies for the Unitree Go2 robot using Proximal Policy Optimization (PPO). Employed Raibert Heuristic for gait shaping. Modeled joint actuator friction to bridge the sim-to-real gap.
 
-Please refer to [official project webpage](https://machines-in-motion.github.io/RL_class_go2_project/) for more information
+Please refer to [official project site](https://machines-in-motion.github.io/RL_class_go2_project/) for more information
 
 <img src="docs/img/gait.gif" alt="demo" style="zoom: 60%;" />
 
@@ -30,7 +30,7 @@ source ./.venv/bin/activate
 
 ### Training
 
-This project is trained with RSL-RL
+This project is trained using the PPO agent of RSL-RL, with 4096 parallel environments by default. The physics engine runs at 200Hz and the control policy runs at 50Hz
 
 To train in headless mode
 
@@ -49,6 +49,8 @@ python ./scripts/rsl_rl/train.py \
 ```
 
 Then you can watch the rendered training with [Isaac Sim WebRTC Streaming Client](https://docs.isaacsim.omniverse.nvidia.com/5.1.0/installation/download.html)
+
+You can monitor training data by passing an optional flag `--logger wandb`
 
 ### Evaluation
 
@@ -92,7 +94,7 @@ You can find pretrained checkpoints in the `/ckpt` directory
 
 ### MDP
 
-For **rewards** and **terminations**, please refer to [MDP](./source/rob6323_go2/rob6323_go2/tasks/direct/rob6323_go2/mdp/__init__.py) directory for implementation
+For **rewards** and **terminations**, please refer to [MDP](./source/rob6323_go2/rob6323_go2/tasks/direct/rob6323_go2/mdp) directory for implementation
 
 #### Reward
 
@@ -110,7 +112,7 @@ For **rewards** and **terminations**, please refer to [MDP](./source/rob6323_go2
 |`foot_clearance`   |-30.0      | on lifting feet during swing phase |
 |`tracking_contacts`|4.0        | on tracking foot contacts states |
 
->Weights of `dof_torque`/`action_rate` are tuned to -0.00002/-0.05 in the task with actuator friction model
+>Weights of `dof_torque`/`action_rate` are tuned to -0.00001/-0.02 in the task with actuator friction model
 
 #### Termination
 
