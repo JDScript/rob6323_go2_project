@@ -140,13 +140,13 @@ $$
 
 ### Actuator Friction Model
 
-For the convenience of sim2real, this model computes static and viscous friction that should be subtracted from the torque computed by PD Controller
+For the convenience of sim2real. This model computes static and viscous friction that should be subtracted from the torque computed by PD Controller
 
 $$
 \begin{align*}
 \tau_{stiction} &= F_s \cdot \tanh(\frac{\dot{q}}{0.1})\\
 \tau_{viscous} &= \mu_v \cdot \dot{q}\\
-\tau_{fraction} &= tau_{stiction} + \tau_{viscous}\\
+\tau_{fraction} &= \tau_{stiction} + \tau_{viscous}\\
 \tau_{PD} &\leftarrow \tau_{PD} - \tau_{friction}
 \end{align*}
 $$
