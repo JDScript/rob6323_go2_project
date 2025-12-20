@@ -12,6 +12,8 @@ from isaaclab.markers.config import BLUE_ARROW_X_MARKER_CFG
 from isaaclab.markers.config import GREEN_ARROW_X_MARKER_CFG
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors import ContactSensorCfg
+from isaaclab.sensors import RayCasterCfg
+from isaaclab.sensors import patterns
 import isaaclab.sim as sim_utils
 from isaaclab.sim import SimulationCfg
 from isaaclab.terrains import TerrainImporterCfg
@@ -131,4 +133,13 @@ class Rob6323Go2EnvCfgRough(Rob6323Go2EnvCfg):
             dynamic_friction=1.0,
         ),
         debug_vis=False,
+    )
+
+    height_scanner = RayCasterCfg(
+        prim_path="/World/envs/env_.*/Robot/base",
+        offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 20.0)),
+        ray_alignment="yaw",
+        pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=[1.6, 1.0]),
+        debug_vis=False,
+        mesh_prim_paths=["/World/ground"],
     )
