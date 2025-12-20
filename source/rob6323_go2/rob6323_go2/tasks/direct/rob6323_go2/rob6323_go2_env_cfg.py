@@ -118,7 +118,8 @@ class Rob6323Go2EnvCfg(DirectRLEnvCfg):
     current_vel_visualizer_cfg.markers["arrow"].scale = (0.5, 0.5, 0.5)
 
 
-class Rob6323Go2EnvCfgRough(Rob6323Go2EnvCfg):
+@configclass
+class Rob6323Go2RoughEnvCfg(Rob6323Go2EnvCfg):
     # Use rough terrain
     terrain = TerrainImporterCfg(
         prim_path="/World/ground",
